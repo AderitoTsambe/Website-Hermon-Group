@@ -1,0 +1,198 @@
+# BEGIN HERMON Security & Performance
+# Hardening added after the 2026 intrusion. Keep this block above the others.
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+# Canonical address: always https://hermongroup.co.mz/ (Let's Encrypt/AutoSSL checks stay reachable)
+RewriteCond %{REQUEST_URI} !^/\.well-known/
+RewriteCond %{HTTPS} off [OR]
+RewriteCond %{HTTP_HOST} !^hermongroup\.co\.mz$ [NC]
+RewriteRule ^(.*)$ https://hermongroup.co.mz/$1 [R=301,L]
+
+# Old empty page -> its content lives in Who We Are
+RewriteRule ^vision-values-mission/?$ /who-we-are/ [R=301,L]
+
+# XML-RPC is not used (brute-force / pingback abuse)
+RewriteRule ^xmlrpc\.php$ - [F,L]
+
+# Only WordPress' own PHP entry points may run from the site root (blocks dropped webshells)
+RewriteCond %{REQUEST_URI} !^/(index|wp-login|wp-cron|wp-comments-post|wp-signup|wp-activate|wp-trackback|wp-links-opml|wp-mail)\.php$ [NC]
+RewriteRule ^[^/]+\.php$ - [F,L,NC]
+
+# Core folders and content folders never serve PHP directly
+RewriteRule ^wp-admin/includes/ - [F,L]
+RewriteCond %{REQUEST_URI} !/wp-includes/js/tinymce/wp-tinymce\.php$
+RewriteRule ^wp-includes/.+\.php - [F,L,NC]
+RewriteRule ^wp-content/[^/]+\.php - [F,L,NC]
+RewriteRule ^wp-content/(mu-plugins|languages|upgrade|upgrade-temp-backup|ai1wm-backups)/ - [F,L,NC]
+RewriteRule ^wp-content/themes/.+\.(php\d?|phtml|phar)$ - [F,L,NC]
+RewriteRule ^wp-content/uploads/.+\.(php\d?|phtml|phar|pl|py|cgi|sh)$ - [F,L,NC]
+
+# Serve the .webp copy of a JPEG/PNG to browsers that support it (same URL, ~80% smaller)
+RewriteCond %{HTTP_ACCEPT} image/webp
+RewriteCond %{REQUEST_FILENAME} \.(jpe?g|png)$ [NC]
+RewriteCond %{REQUEST_FILENAME}.webp -f
+RewriteRule ^(.+)$ $1.webp [T=image/webp,E=webp:1,L]
+</IfModule>
+
+# Sensitive files
+<FilesMatch "(^\.ht|^wp-config|^readme\.html$|^license\.txt$|\.(sql|sql\.gz|bak|old|orig|log|ini|sh|zip|tar|gz)$)">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+  Header always set Strict-Transport-Security "max-age=31536000"
+  Header unset X-Powered-By
+  <FilesMatch "\.(jpe?g|png)$">
+    Header append Vary Accept
+  </FilesMatch>
+  <FilesMatch "\.(css|js|webp|avif|jpe?g|png|gif|svg|ico|woff2?|ttf|eot|otf)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
+
+<IfModule mod_mime.c>
+  AddType image/webp .webp
+  AddType font/woff2 .woff2
+</IfModule>
+
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresDefault "access plus 1 hour"
+  ExpiresByType text/html "access plus 0 seconds"
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType text/javascript "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/gif "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType image/x-icon "access plus 1 year"
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType font/woff "access plus 1 year"
+  ExpiresByType font/ttf "access plus 1 year"
+</IfModule>
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/css text/xml application/xml application/javascript text/javascript application/json image/svg+xml font/ttf
+</IfModule>
+# END HERMON Security & Performance
+
+
+# BEGIN LSCACHE
+## LITESPEED WP CACHE PLUGIN - Do not edit the contents of this block! ##
+<IfModule mod_rewrite.c>
+RewriteEngine on
+RewriteRule litespeed/debug/.*\.log$ - [F,L]
+RewriteRule (^|/)\.litespeed_conf\. - [F,L]
+</IfModule>
+<IfModule LiteSpeed>
+CacheLookup on
+RewriteRule .* - [E=Cache-Control:no-autoflush]
+
+### marker ASYNC start ###
+RewriteCond %{REQUEST_URI} /wp-admin/admin-ajax\.php
+RewriteCond %{QUERY_STRING} action=async_litespeed
+RewriteRule .* - [E=noabort:1]
+### marker ASYNC end ###
+
+### marker REST AUTH start ###
+RewriteCond %{HTTP:Authorization} !^$
+RewriteCond %{REQUEST_URI} /wp\-json(?:/|$) [OR]
+RewriteCond %{QUERY_STRING} (^|&)rest_route=
+RewriteRule .* - [E=Cache-Control:no-cache]
+### marker REST AUTH end ###
+
+### marker POSTPASS start ###
+RewriteCond %{HTTP_COOKIE} (^|;\s*)wp-postpass_37d007a56d816107ce5b52c10342db37=
+RewriteRule .* - [E=Cache-Control:no-cache]
+### marker POSTPASS end ###
+
+### marker DROPQS start ###
+CacheKeyModify -qs:fbclid
+CacheKeyModify -qs:gclid
+CacheKeyModify -qs:utm*
+CacheKeyModify -qs:_ga
+### marker DROPQS end ###
+
+</IfModule>
+## LITESPEED WP CACHE PLUGIN - Do not edit the contents of this block! ##
+# END LSCACHE
+# BEGIN NON_LSCACHE
+## LITESPEED WP CACHE PLUGIN - Do not edit the contents of this block! ##
+### marker BROWSER CACHE start ###
+<IfModule mod_expires.c>
+ExpiresActive on
+ExpiresByType application/pdf A31557600
+ExpiresByType image/x-icon A31557600
+ExpiresByType image/vnd.microsoft.icon A31557600
+ExpiresByType image/svg+xml A31557600
+
+ExpiresByType image/jpg A31557600
+ExpiresByType image/jpeg A31557600
+ExpiresByType image/png A31557600
+ExpiresByType image/gif A31557600
+ExpiresByType image/webp A31557600
+ExpiresByType image/avif A31557600
+
+ExpiresByType video/ogg A31557600
+ExpiresByType audio/ogg A31557600
+ExpiresByType video/mp4 A31557600
+ExpiresByType video/webm A31557600
+
+ExpiresByType text/css A31557600
+ExpiresByType text/javascript A31557600
+ExpiresByType application/javascript A31557600
+ExpiresByType application/x-javascript A31557600
+
+ExpiresByType application/x-font-ttf A31557600
+ExpiresByType application/x-font-woff A31557600
+ExpiresByType application/font-woff A31557600
+ExpiresByType application/font-woff2 A31557600
+ExpiresByType application/vnd.ms-fontobject A31557600
+ExpiresByType font/ttf A31557600
+ExpiresByType font/otf A31557600
+ExpiresByType font/woff A31557600
+ExpiresByType font/woff2 A31557600
+
+</IfModule>
+### marker BROWSER CACHE end ###
+
+## LITESPEED WP CACHE PLUGIN - Do not edit the contents of this block! ##
+# END NON_LSCACHE
+
+# BEGIN WordPress
+# The directives (lines) between "BEGIN WordPress" and "END WordPress" are
+# dynamically generated, and should only be modified via WordPress filters.
+# Any changes to the directives between these markers will be overwritten.
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteBase /
+RewriteRule ^index\.php$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.php [L]
+</IfModule>
+
+# END WordPress
+# BEGIN LiteSpeed
+# The directives (lines) between "BEGIN LiteSpeed" and "END LiteSpeed" are
+# dynamically generated, and should only be modified via WordPress filters.
+# Any changes to the directives between these markers will be overwritten.
+<IfModule Litespeed>
+SetEnv noabort 1
+</IfModule>
+# END LiteSpeed

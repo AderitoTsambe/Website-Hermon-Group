@@ -1,0 +1,11 @@
+# HERMON Security: uploads are media only, nothing here may ever run as code.
+<FilesMatch "\.(php\d?|phtml|phar|pl|py|cgi|sh|asp|aspx|jsp)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+Options -Indexes
