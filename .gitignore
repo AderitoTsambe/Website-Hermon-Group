@@ -3,6 +3,7 @@ HermonGroupWebsite-final/wp-config.php
 
 # Database dump: password hashes, e-mails and form submissions - never in a public repo.
 /*.sql
+!/hermongr_wp460_public.sql
 
 # Build/deploy leftovers
 /hermongroup-site.zip

@@ -12,7 +12,27 @@ Hello Elementor + Pro Elements, bilingual with Polylang (EN at `/`, PT at `/pt/`
 ## Not in this repository
 
 - **`wp-config.php`**: copy `wp-config-sample.php`, fill in the DB credentials and generate new keys at https://api.wordpress.org/secret-key/1.1/salt/. Table prefix is `wpkv_`.
-- **Database dump**: kept privately, because it holds password hashes and form submissions.
+- **Full database dump**: kept privately.
+
+## Public database: `hermongr_wp460_public.sql`
+
+This is the site's content and settings (pages, Elementor layouts, menus, Polylang, Yoast), with everything sensitive removed:
+
+- the admin's e-mail and password hash;
+- `secret_key` and the recovery keys;
+- the Instagram token;
+- license keys;
+- Freemius and Elementor Connect data;
+- transients.
+
+After importing it, give the admin back an e-mail and password in phpMyAdmin (WordPress rehashes the MD5 on first login):
+
+```sql
+UPDATE wpkv_users SET user_email = 'you@example.com', user_pass = MD5('a-strong-password') WHERE ID = 1;
+UPDATE wpkv_options SET option_value = 'you@example.com' WHERE option_name IN ('admin_email', 'new_admin_email');
+```
+
+Then reconnect the Instagram feed (Smash Balloon) in wp-admin.
 
 ## Deploy (DirectAdmin)
 
